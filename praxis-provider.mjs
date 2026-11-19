@@ -1,6 +1,6 @@
 const metadata = { version: 1, appId: 'calendar', name: 'Calendar', cards: { supported: true, execution: 'browser' }, nativeReads: ['/api/agenda'], dataSources: [
   { id: 'reminder-dates', label: 'Authorized Reminder dates', labels: { zh: '获授权的 Reminder 日期' }, kind: 'derived', location: { kind: 'derived' }, description: 'A date view derived from reminders the current account can read.' },
-  { id: 'local-events', label: 'Events created in this browser', labels: { zh: '在此浏览器创建的日程' }, kind: 'browser', location: { kind: 'browser', storageKey: 'praxis.calendar.events.v1' } },
+  { id: 'local-events', label: 'Events created in this browser', labels: { zh: '在此浏览器创建的日程' }, kind: 'browser', location: { kind: 'browser', storageKey: 'praxis.calendar.events.v1:*' } },
   { id: 'ics-files', label: 'Downloaded calendar invitations', labels: { zh: '已下载的日历邀请' }, kind: 'external', location: { kind: 'external' }, description: 'Downloaded .ics files belong to the browser download destination or the calendar into which the person imports them.' },
 ] };
 export const EVENT_KEY = 'praxis.calendar.events.v1';
@@ -50,7 +50,7 @@ export async function getDataInventory(context = {}) {
     let resolved = {};
     if (typeof context.resolveDataSource === 'function') {
       try { resolved = await context.resolveDataSource(structuredClone(source)) || {}; } catch { resolved = { status: 'unavailable' }; }
-    } else if (source.kind === 'browser') resolved = { storageKey: context.identity?.userId ? eventKey(context.identity.userId) : EVENT_KEY };
+    } else if (source.kind === 'browser') resolved = { storageKey: context.identity?.userId ? eventKey(context.identity.userId) : EVENT_KEY + ':*' };
     items.push({ id: source.id, appId: 'calendar', label: source.label, labels: source.labels, kind: source.kind, ...resolved, ...(source.description && !resolved.description && { description: source.description }) });
   }
   return { status: items.some(item => item.status === 'unavailable') ? 'partial' : 'ready', items };

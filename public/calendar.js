@@ -120,7 +120,8 @@ async function refresh() {
     state = result.partial ? 'partial' : '';
   } catch {
     if (run !== revision) return;
-    items = []; localEvents = []; ownerId = '';
+    items = []; localEvents = []; ownerId = ''; draftOwner = '';
+    $('editor').hidden = true; $('new').hidden = false; $('summary').value = '';
     state = 'error';
   }
   $('new').disabled = managed && !ownerId;
