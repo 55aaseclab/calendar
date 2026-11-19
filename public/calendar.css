@@ -1,0 +1,148 @@
+:root {
+  font:
+    16px/1.5 system-ui,
+    sans-serif;
+  color: #252529;
+  background: #f3f5f6;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 1120px;
+  margin: auto;
+  padding: 32px 24px 84px;
+}
+header,
+.monthbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+header {
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+h1,
+h2 {
+  margin: 0;
+}
+h2 {
+  font-size: 1.25rem;
+}
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(240px, 2fr);
+  gap: 20px;
+}
+.layout section {
+  background: white;
+  border: 1px solid #d9dddd;
+  padding: 20px;
+  border-radius: 12px;
+  min-width: 0;
+}
+.monthbar h2 {
+  flex: 1;
+}
+.grid,
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+.weekdays {
+  text-align: center;
+  color: #536561;
+  margin: 14px 0 8px;
+  font-size: 0.85rem;
+}
+button,
+input {
+  font: inherit;
+}
+button {
+  min-height: 44px;
+  min-width: 44px;
+  color: #244b41;
+  background: white;
+  border: 1px solid #cbd8d2;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.grid button {
+  min-width: 0;
+  border-color: transparent;
+  position: relative;
+}
+.grid button[aria-pressed='true'] {
+  color: white;
+  background: #226652;
+}
+.grid button[aria-current='date'] {
+  border-color: #226652;
+}
+.grid button.marked::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: calc(50% - 2px);
+  height: 4px;
+  width: 4px;
+  background: currentColor;
+  border-radius: 50%;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 3px solid #1672d4;
+  outline-offset: 1px;
+}
+ul {
+  list-style: none;
+  padding: 0;
+}
+li {
+  padding: 8px 0;
+  border-bottom: 1px solid #e1e5e3;
+  overflow-wrap: anywhere;
+}
+a {
+  color: #205a49;
+}
+label {
+  display: grid;
+  gap: 5px;
+  margin: 12px 0;
+}
+input {
+  padding: 8px;
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #adbbb6;
+  border-radius: 5px;
+}
+#status {
+  color: #57655f;
+}
+#editor button {
+  margin-right: 5px;
+}
+@media (max-width: 700px) {
+  main {
+    padding: 18px 9px 78px;
+  }
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .layout section {
+    padding: 10px;
+  }
+  .monthbar h2 {
+    font-size: 1.05rem;
+  }
+}

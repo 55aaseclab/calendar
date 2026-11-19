@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Calendar</title>
+    <link rel="stylesheet" href="./calendar.css" />
+    <script type="module" src="./calendar.js"></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1 id="brand">Calendar</h1>
+        <button id="language" type="button">中文</button>
+      </header>
+      <div class="layout">
+        <section aria-labelledby="month">
+          <div class="monthbar">
+            <h2 id="month"></h2>
+            <button id="prev" type="button">‹</button><button id="today" type="button">Today</button
+            ><button id="next" type="button">›</button>
+          </div>
+          <div class="weekdays" id="weekdays"></div>
+          <div class="grid" id="grid"></div>
+        </section>
+        <section aria-labelledby="day">
+          <h2 id="day"></h2>
+          <p id="status" role="status"></p>
+          <ul id="agenda"></ul>
+          <button type="button" id="new">New event</button>
+          <form id="editor" hidden>
+            <label
+              ><span id="summary-label">Event title</span
+              ><input required maxlength="300" id="summary" autocomplete="off" /></label
+            ><label
+              ><span id="start-label">Start</span><input type="datetime-local" required id="start" /></label
+            ><label><span id="end-label">End</span><input type="datetime-local" required id="end" /></label
+            ><button id="download">Download .ics</button><button type="button" id="cancel">Cancel</button>
+          </form>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>
