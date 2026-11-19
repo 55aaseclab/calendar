@@ -1,13 +1,18 @@
+import { loadEvents, saveEvent, eventKey } from './calendar-events.js';
 const $ = (id) => document.getElementById(id);
 const key = (d) =>
   [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join(
     '-'
   );
 const midnight = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-let selected = midnight(new Date()),
+const requestedDay = new URL(location.href).searchParams.get('date');
+const parseDay = value => { if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null; const [year, month, day] = value.split('-').map(Number), date = new Date(year, month - 1, day); return key(date) === value ? date : null; };
+let selected = parseDay(requestedDay) || midnight(new Date()),
   items = [],
   state = '',
-  revision = 0;
+  revision = 0,
+  ownerId = '', localEvents = [], draftEventId = '', draftOwner = '';
+const standaloneOwner = 'standalone:' + location.origin;
 const managed = location.pathname.startsWith('/apps/calendar/');
 const language = () => (localStorage.getItem('praxis.locale') === 'zh' ? 'zh-CN' : 'en');
 const tr = (en, zh) => (language() === 'en' ? en : zh);
@@ -27,6 +32,7 @@ function render() {
   $('next').ariaLabel = tr('Next month', '下个月');
   $('today').textContent = tr('Today', '今天');
   $('new').textContent = tr('New event', '新建日程');
+  $('new').disabled = managed && !ownerId;
   $('summary-label').textContent = tr('Event title', '日程名称');
   $('start-label').textContent = tr('Start', '开始');
   $('end-label').textContent = tr('End', '结束');
@@ -48,7 +54,8 @@ function render() {
   );
   grid.replaceChildren();
   for (let i = 0; i < offset; i++) grid.append(document.createElement('span'));
-  const dated = new Set(items.map((item) => item.date?.slice(0, 10)));
+  const entries = [...items, ...localEvents.map(event => ({ title: event.title, date: event.start.replace('T', ' '), localId: event.id }))];
+  const dated = new Set(entries.map((item) => item.date?.slice(0, 10)));
   for (let i = 1; i <= days; i++) {
     const date = new Date(year, month, i),
       iso = key(date),
@@ -66,7 +73,7 @@ function render() {
     };
     grid.append(el);
   }
-  const matches = items
+  const matches = entries
     .filter((item) => item.date?.slice(0, 10) === key(selected))
     .sort((a, b) => a.date.localeCompare(b.date));
   $('status').textContent =
@@ -81,7 +88,8 @@ function render() {
     ...matches.map((item) => {
       const el = document.createElement('li'),
         a = document.createElement('a');
-      a.href = '/business/reminder/?' + new URLSearchParams({ space: item.spaceId, item: item.resourceId });
+      a.href = item.localId ? '?'+new URLSearchParams({ date: item.date.slice(0, 10), source: 'event:'+item.localId }) : '/business/reminder/?' + new URLSearchParams({ space: item.spaceId, item: item.resourceId });
+      el.dataset.source = item.localId ? 'event:'+item.localId : 'reminder:'+item.spaceId+':'+item.resourceId; el.tabIndex = -1;
       a.textContent = [item.date.slice(11), item.title].filter(Boolean).join(' · ');
       el.append(a);
       return el;
@@ -89,10 +97,17 @@ function render() {
   );
 }
 async function refresh() {
-  if (!managed) return;
+  if (!managed) { ownerId = standaloneOwner; localEvents = loadEvents(ownerId); render(); return; }
   const run = ++revision;
   try {
-    const response = await fetch('/api/business/workbench/agenda', {
+    const accountResponse = await fetch('/api/business/account/session', { credentials: 'same-origin', cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(7000) });
+    if (!accountResponse.ok) throw Error();
+    const account = await accountResponse.json();
+    if (typeof account.user?.id !== 'string') throw Error();
+    if (run !== revision) return;
+    if (ownerId && ownerId !== account.user.id) { $('editor').hidden = true; $('new').hidden = false; $('summary').value = ''; draftEventId = ''; draftOwner = ''; }
+    ownerId = account.user.id; localEvents = loadEvents(ownerId);
+    const response = await fetch('./api/agenda', {
       cache: 'no-store',
       redirect: 'error',
       signal: AbortSignal.timeout(7000)
@@ -100,14 +115,18 @@ async function refresh() {
     if (!response.ok) throw Error();
     const result = await response.json();
     if (run !== revision) return;
+    if (!Array.isArray(result.items)) throw Error();
     items = result.items;
     state = result.partial ? 'partial' : '';
   } catch {
     if (run !== revision) return;
-    items = [];
+    items = []; localEvents = []; ownerId = '';
     state = 'error';
   }
+  $('new').disabled = managed && !ownerId;
   render();
+  const source = new URL(location.href).searchParams.get('source');
+  if (source) [...$('agenda').children].find(node => node.dataset.source === source)?.focus();
 }
 $('prev').onclick = () => monthStep(-1);
 $('next').onclick = () => monthStep(1);
@@ -123,6 +142,8 @@ $('language').onclick = () => {
   dispatchEvent(new Event('praxis-locale-change'));
 };
 $('new').onclick = () => {
+  if (!ownerId) return;
+  draftEventId = crypto.randomUUID(); draftOwner = ownerId;
   $('editor').hidden = false;
   $('new').hidden = true;
   $('start').value = key(selected) + 'T09:00';
@@ -135,7 +156,7 @@ $('cancel').onclick = () => {
   $('new').focus();
 };
 $('end').oninput = $('start').oninput = () => $('end').setCustomValidity('');
-$('editor').onsubmit = (event) => {
+$('editor').onsubmit = async (event) => {
   event.preventDefault();
   const start = new Date($('start').value),
     end = new Date($('end').value);
@@ -144,6 +165,15 @@ $('editor').onsubmit = (event) => {
     $('end').reportValidity();
     return;
   }
+  if (!ownerId || draftOwner !== ownerId) return;
+  if (managed) {
+    try { const response = await fetch('/api/business/account/session', { credentials: 'same-origin', cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(7000) }); const account = response.ok && await response.json(); if (account?.user?.id !== draftOwner) { await refresh(); $('status').textContent = tr('Your account changed. Open a new event to continue.', '账号已变化，请重新打开新建日程。'); return; } }
+    catch { $('status').textContent = tr('Could not confirm your account. Try again.', '暂时无法确认账号，请重试。'); return; }
+  }
+  try { localEvents = saveEvent(ownerId, { id: draftEventId || crypto.randomUUID(), title: $('summary').value, start: $('start').value, end: $('end').value, updatedAt: new Date().toISOString() }); }
+  catch { $('status').textContent = tr('Could not save this browser event. No invitation was downloaded.', '无法保存此浏览器日程，本次未下载邀请。'); return; }
+  render();
+  dispatchEvent(new Event('praxis-calendar-events-change'));
   const utc = (d) =>
     d
       .toISOString()
@@ -159,7 +189,7 @@ $('editor').onsubmit = (event) => {
     'VERSION:2.0',
     'PRODID:-//Praxis//Calendar//EN',
     'BEGIN:VEVENT',
-    'UID:' + crypto.randomUUID() + '@praxis',
+    'UID:' + draftEventId + '@praxis',
     'DTSTAMP:' + utc(new Date()),
     'DTSTART:' + utc(start),
     'DTEND:' + utc(end),
@@ -193,6 +223,7 @@ $('editor').onsubmit = (event) => {
 };
 addEventListener('storage', (e) => {
   if (e.key === 'praxis.locale') render();
+  if (ownerId && (e.key === eventKey(ownerId) || e.key === null)) { localEvents = loadEvents(ownerId); render(); }
 });
 addEventListener('pageshow', (e) => {
   if (e.persisted) void refresh();
