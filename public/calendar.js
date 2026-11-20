@@ -1,4 +1,4 @@
-import { loadEvents, saveEvent, eventKey } from './calendar-events.js';
+import { loadDatabaseEvents as loadEvents, saveDatabaseEvent as saveEvent, eventKey } from './calendar-events.js';
 const $ = (id) => document.getElementById(id);
 const key = (d) =>
   [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join(
@@ -78,7 +78,7 @@ function render() {
     .sort((a, b) => a.date.localeCompare(b.date));
   $('status').textContent =
     state === 'error'
-      ? tr('Could not load reminders.', '无法读取提醒。')
+      ? tr('Could not load calendar data.', '无法读取日历数据。')
       : state === 'partial'
         ? tr('Some reminders are unavailable.', '部分提醒暂不可用。')
         : !matches.length
@@ -97,7 +97,7 @@ function render() {
   );
 }
 async function refresh() {
-  if (!managed) { ownerId = standaloneOwner; localEvents = loadEvents(ownerId); render(); return; }
+  if (!managed) { ownerId = standaloneOwner; localEvents = await loadEvents(ownerId); render(); return; }
   const run = ++revision;
   try {
     const accountResponse = await fetch('/api/business/account/session', { credentials: 'same-origin', cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(7000) });
@@ -106,7 +106,7 @@ async function refresh() {
     if (typeof account.user?.id !== 'string') throw Error();
     if (run !== revision) return;
     if (ownerId && ownerId !== account.user.id) { $('editor').hidden = true; $('new').hidden = false; $('summary').value = ''; draftEventId = ''; draftOwner = ''; }
-    ownerId = account.user.id; localEvents = loadEvents(ownerId);
+    ownerId = account.user.id; const loadingOwner=ownerId;const loadedEvents=await loadEvents(loadingOwner);if(run!==revision||ownerId!==loadingOwner)return;localEvents=loadedEvents;
     const response = await fetch('./api/agenda', {
       cache: 'no-store',
       redirect: 'error',
@@ -171,8 +171,9 @@ $('editor').onsubmit = async (event) => {
     try { const response = await fetch('/api/business/account/session', { credentials: 'same-origin', cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(7000) }); const account = response.ok && await response.json(); if (account?.user?.id !== draftOwner) { await refresh(); $('status').textContent = tr('Your account changed. Open a new event to continue.', '账号已变化，请重新打开新建日程。'); return; } }
     catch { $('status').textContent = tr('Could not confirm your account. Try again.', '暂时无法确认账号，请重试。'); return; }
   }
-  try { localEvents = saveEvent(ownerId, { id: draftEventId || crypto.randomUUID(), title: $('summary').value, start: $('start').value, end: $('end').value, updatedAt: new Date().toISOString() }); }
+  const savingOwner=ownerId;try { const savedEvents = await saveEvent(savingOwner, { id: draftEventId || crypto.randomUUID(), title: $('summary').value, start: $('start').value, end: $('end').value, updatedAt: new Date().toISOString() }); if(ownerId!==savingOwner||draftOwner!==savingOwner)return;localEvents=savedEvents; }
   catch { $('status').textContent = tr('Could not save this browser event. No invitation was downloaded.', '无法保存此浏览器日程，本次未下载邀请。'); return; }
+  if(managed){try{const response=await fetch('/api/business/account/session',{credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(7000)});const account=response.ok&&await response.json();if(account?.user?.id!==savingOwner){await refresh();return;}}catch{await refresh();return;}}
   render();
   dispatchEvent(new Event('praxis-calendar-events-change'));
   const utc = (d) =>
@@ -222,9 +223,9 @@ $('editor').onsubmit = async (event) => {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
-addEventListener('storage', (e) => {
+addEventListener('storage', async (e) => {
   if (e.key === 'praxis.locale') render();
-  if (ownerId && (e.key === eventKey(ownerId) || e.key === null)) { localEvents = loadEvents(ownerId); render(); }
+  if (ownerId && (e.key === eventKey(ownerId) || e.key === 'praxis.calendar.db-change' || e.key === null)) { const loadingOwner=ownerId,loaded=await loadEvents(loadingOwner);if(ownerId!==loadingOwner)return;localEvents=loaded;render(); }
 });
 addEventListener('pageshow', (e) => {
   if (e.persisted) void refresh();
