@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "calendar",
+  "version": "0.1.1",
+  "kind": "app",
+  "name": "Calendar",
+  "description": "Calendar and agenda",
+  "labels": {
+    "en": {
+      "name": "Calendar",
+      "description": "Calendar and agenda"
+    },
+    "zh": {
+      "name": "日历",
+      "description": "日历与日程"
+    }
+  },
+  "icon": "public/praxis-icon.svg",
+  "iconAliases": [
+    "/calendar-icon.svg"
+  ],
+  "path": "/",
+  "documents": {
+    "prd": {
+      "en": "PRD.md",
+      "zh": "PRD.md",
+      "zhHeading": "# 日历"
+    }
+  }
+}

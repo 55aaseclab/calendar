@@ -1,8 +1,8 @@
 # Roadmap / 路线图
 
-0.1 delivers month navigation, daily agenda, scoped reminders and timed event export. Check short months, leap days, month navigation, keyboard access, mobile width and export escaping.
+0.1.0 delivers month navigation, daily agenda, scoped reminders and timed event export. Check short months, leap days, month navigation, keyboard access, mobile width and export escaping.
 
-0.1 交付月份切换、每日议程、受控提醒和定时日程导出。验收小月、闰日、键盘操作、手机宽度及日历导出转义。
+0.1.0 交付月份切换、每日议程、受控提醒和定时日程导出。验收小月、闰日、键盘操作、手机宽度及日历导出转义。
 
 0.1.1 adds authorized day cards, exact-day links, identity-bound browser events and derived/browser/external data-location metadata. Verify empty sources, account isolation, stable revisions and genuine ICS export.
 
